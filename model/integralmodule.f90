@@ -15,7 +15,7 @@ contains
 
 
 function dist(phi1, theta1, phi2, theta2, radius)
-!Function to compute great circle distance
+    !Function to compute great circle distance
 
     real(kind=8), intent(in) :: phi1, theta1, phi2, theta2, radius
     real(kind=8) :: dist, a
@@ -27,6 +27,7 @@ end function dist
 
 
 subroutine make_Kernel(n, p, theta, phi, kern)
+    !Function to compute the connectivity matrix 
 
     integer, intent(in) :: n
     real(kind=8), dimension(10), intent(in) :: p
@@ -69,6 +70,8 @@ end subroutine make_Kernel
 
 
 subroutine make_F(n, p, theta, phi, kern, w, u, F)
+    !Function to compute the integral operator for the system
+    !using a quadrature rule  
 
     integer, intent(in) :: n
     real(kind=8), dimension(10), intent(in) :: p
@@ -76,8 +79,7 @@ subroutine make_F(n, p, theta, phi, kern, w, u, F)
     real(kind=8), dimension(n), intent(in) :: theta, phi, w, u
     real(kind=8), dimension(n), intent(out) :: F
     real(kind=8), dimension(n) :: s
-    real(kind=8) :: d, connect, h, mu, gain, a1, b1, a2, b2, radius, het
-    real(kind=8) :: amp
+    real(kind=8) :: h, mu, gain 
     integer :: i, j
 
     !Unpack parameters
@@ -112,8 +114,7 @@ subroutine make_Jv(n, p, theta, phi, kern, w, u, v, Jv)
     real(kind=8), dimension(n), intent(in) :: theta, phi, w, u, v
     real(kind=8), dimension(n), intent(out) :: Jv
     real(kind=8), dimension(n) :: ds
-    real(kind=8) :: d, connect, h, mu, gain, a1, b1, a2, b2, radius
-    real(kind=8) :: het, amp
+    real(kind=8) :: h, mu, gain 
     integer :: i, j
 
     !Unpack parameters

@@ -29,12 +29,17 @@ class harmonicNeuralfield:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
-        #Default attributes
+        #Default parameter settings 
         self.a1, self.b1, self.a2, self.b2 = 6.6, 1.0/28.0, 5.0, 1.0/20.0
         self.h, self.mu, self.kappa = 0.35, 8.0, 50.0
         self.lambda_ord = 10
         self.lmax = 40 
+
+
+    def makeGrid(self, **kwargs):
+        self.__dict__.update(kwargs)
         
+        #Construct the latitude-longitude grid 
         self.n = self.lmax*2 + 2
         latspacing = 180.0/float(self.n)
         lonspacing = 180.0/float(self.n)
@@ -54,7 +59,7 @@ class harmonicNeuralfield:
         return k
         
         
-    def make_W0(self, quad_ord=60, **kwargs):
+    def makeW0(self, quad_ord=60, **kwargs):
         """Function to compute W0, which is the integral
         of the kernel over the sphere."""
         
@@ -65,16 +70,7 @@ class harmonicNeuralfield:
         self.W0 = 2.0*np.pi*sum(weight*self.kernel(xi))
         
         
-    def test_leg(self, nmax=21, quad_ord=21):
-        xi, weight = leg.leggauss(quad_ord)
-        P = np.zeros((nmax, quad_ord))
-        for i in range(nmax):
-            poly = legendre(i)
-            P[i,:] = np.sqrt(weight)*poly(xi)        
-        return np.dot(P, P.T)
-        
-        
-    def make_Wn(self, quad_ord=62, **kwargs):
+    def makeWn(self, quad_ord=60, **kwargs):
         """Function that returns a vector of dimension nmax,
         where the nth element contains the integral of the
         product of the kernel with the nth Legendre polynomial."""
