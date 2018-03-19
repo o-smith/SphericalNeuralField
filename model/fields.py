@@ -4,6 +4,7 @@ sys.path.append('/Users/oliversmith/iso_octo/SHTOOLS-3.1')
 # import _SHTOOLS as sh
 import pyshtools as sh
 import numpy as np
+import integralmodule as imod 
 import numpy.polynomial.legendre as leg
 from scipy.special import legendre
 from scipy.linalg import norm, solve
@@ -30,6 +31,7 @@ class NeuralField:
         #Default parameter settings 
         self.a1, self.b1, self.a2, self.b2 = 6.6, 1.0/28.0, 5.0, 1.0/20.0
         self.h, self.mu, self.kappa = 0.35, 8.0, 50.0
+        self.radius = 1.0 
         self.lambda_ord = 10
         self.lmax = 40 
 
@@ -68,7 +70,7 @@ class SphericalHarmonicNeuralField(NeuralField):
 
 
     def __init__(self, **kwargs):
-        super().__init__.(**kwargs) 
+        super().__init__(**kwargs) 
 
 
     def makeGrid(self, **kwargs):
@@ -123,129 +125,19 @@ class SphericalHarmonicNeuralField(NeuralField):
         
         #Do quadrature for each polynomial order      
         self.Wn = 2.0*np.pi*np.dot(P, self.kernel(xi))
-       
 
 
-
-
-
-
-
-
-
-
-
-
-
-class harmonicNeuralfield:   
-    """
-    Class for neural fields posed on the 2-sphere.
-
-    Model has a kernel consisting of 
-    a difference of Gaussians:
-     kernel = a1*exp(-(d^2)/b1) - a2*exp(-(d^2)/b2),
-        
-    and a sigmoidal firing rate:
-        s(u) = 1/(1 + exp(-mu*(u - h))),
-        
-    and du/dt given by:
-        -u + kappa*integral kernel(<x,x'>)s(u(x')) dx',  
-        with x in 2-sphere. 
-    """ 
-
-    
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-
-        #Default parameter settings 
-        self.a1, self.b1, self.a2, self.b2 = 6.6, 1.0/28.0, 5.0, 1.0/20.0
-        self.h, self.mu, self.kappa = 0.35, 8.0, 50.0
-        self.lambda_ord = 10
-        self.lmax = 40 
-
-
-    def makeGrid(self, **kwargs):
-        self.__dict__.update(kwargs)
-        
-        #Construct the latitude-longitude grid 
-        self.n = self.lmax*2 + 2
-        latspacing = 180.0/float(self.n)
-        lonspacing = 180.0/float(self.n)
-        self.lat = np.arange(-90.0, 90.0, latspacing)
-        self.lon = np.arange(0.0, 360.0, lonspacing)
-        self.phi =  np.deg2rad(self.lat + 90.)
-        self.theta = np.deg2rad(self.lon) 
-        
-                                                
-    def kernel(self, xi):
-        """Function to compute kernel.
-        The argument of this function is 
-        xi = cos(theta)=<x,x'>, in [-1,1]."""
-        
-        d = np.arccos(xi)
-        k = self.a1*np.exp(-(d**2)/self.b1) - self.a2*np.exp(-(d**2)/self.b2)
-        return k
-        
-        
-    def makeW0(self, quad_ord=60, **kwargs):
-        """Function to compute W0, which is the integral
-        of the kernel over the sphere."""
-        
-        self.__dict__.update(kwargs)
-        
-        #Do quadrature
-        xi, weight = leg.leggauss(quad_ord)          
-        self.W0 = 2.0*np.pi*sum(weight*self.kernel(xi))
-        
-        
-    def makeWn(self, quad_ord=60, **kwargs):
-        """Function that returns a vector of dimension nmax,
-        where the nth element contains the integral of the
-        product of the kernel with the nth Legendre polynomial."""
-        
-        self.__dict__.update(kwargs)
-    
-        #Make points and weights for Gauss-Legendre quadrature
-        xi, weight = leg.leggauss(quad_ord)
-        
-        #Generate the n Legendre polynomials, evaluated at each point xi
-        P = np.zeros((self.lmax+1, quad_ord))
-        for i in range(self.lmax+1):
-            poly = legendre(i)
-            P[i,:] = weight*poly(xi)
-        
-        #Do quadrature for each polynomial order      
-        self.Wn = 2.0*np.pi*np.dot(P, self.kernel(xi))
-        
-        
-    def S(self, u, **kwargs):  
-        self.__dict__.update(kwargs)        
-        return 1.0/(1.0 + np.exp(-self.mu*(u - self.h)))
-        
-        
-    def dS(self, u, **kwargs):
-        self.__dict__.update(kwargs)
-        s = self.S(u)
-        return self.mu*s*(1.0 - s) 
-        
-        
-    def d2S(self, u, **kwargs):        
-        self.__dict__.update(kwargs)
-        s = self.S(u)
-        return (self.mu**2)*s*(1.0 - s)*(1.0 - 2.0*s)
-        
-        
-    def scalar_eq(self, u, **kwargs):       
+    def scalarEq(self, u, **kwargs):       
         self.__dict__.update(kwargs)  
         return -u + self.kappa*self.W0*self.S(u)
         
         
-    def dispersion_curve(self, u, **kwargs):       
+    def dispersionCurve(self, u, **kwargs):       
         self.__dict__.update(kwargs)             
         return -1.0 + self.kappa*self.Wn*self.dS(u)
         
                 
-    def stability_system(self, xi, p):        
+    def stabilitySystem(self, xi, p):        
         
         #Set parameters
         self.kappa = xi[1]
@@ -255,12 +147,12 @@ class harmonicNeuralfield:
         
         #Compute right hand side
         RHS = np.zeros(2)
-        RHS[0] = self.scalar_eq(xi[0])
-        RHS[1] = self.dispersion_curve(xi[0])[k]
+        RHS[0] = self.scalarEq(xi[0])
+        RHS[1] = self.dispersionCurve(xi[0])[k]
         return RHS
         
         
-    def stability_jac(self, xi, p):
+    def stabilityJac(self, xi, p):
     
         #Set parameters
         self.kappa = xi[1]
@@ -275,8 +167,8 @@ class harmonicNeuralfield:
         Jac[1,0] = self.kappa*self.Wn[k]*self.d2S(xi[0])
         Jac[1,1] = self.Wn[k]*self.dS(xi[0])
         return Jac
-        
-        
+
+
     def make_u0(self, sigma=0.6, amp=5.0):
         
         #Make a Gaussian bump
@@ -288,9 +180,9 @@ class harmonicNeuralfield:
                                                     /(2.0*sigma**2))
         self.u0 = state 
         return self.u0
-        
-        
-    def make_F(self, u, p):
+
+
+    def makeF(self, u, p):
     
         self.h = p[0]
         self.mu = p[1]
@@ -300,7 +192,7 @@ class harmonicNeuralfield:
         s = self.S(umat)
         s_cilm = sh.SHExpandDH(s, sampling=2)
         
-        #Multiply with wn
+        #Multiply with Wn
         result_cilm = np.zeros(np.shape(s_cilm))
         for i in range(2):
             for l in range(self.lmax + 1):
@@ -315,7 +207,7 @@ class harmonicNeuralfield:
         return temp.reshape(2*self.n*self.n) 
     
     
-    def make_Jv(self, v, u, p):
+    def makeJv(self, v, u, p):
     
         self.h = p[0]
         self.mu = p[1]
@@ -326,7 +218,7 @@ class harmonicNeuralfield:
         ds = self.dS(umat)*vmat
         s_cilm = sh.SHExpandDH(ds, sampling=2)
         
-        #Multiply with wn
+        #Multiply with Wn
         result_cilm = np.zeros(np.shape(s_cilm))
         for i in range(2):
             for l in range(self.lmax + 1):
@@ -339,6 +231,52 @@ class harmonicNeuralfield:
         #Return operator
         temp = -vmat + self.kappa*integral
         return temp.reshape(2*self.n*self.n) 
+       
+
+
+class SphericalQuadratureNeuralField(NeuralField): 
+
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs) 
+
+
+    def parameterUnpack(self, **kwargs): 
+        self.__dict__.update(kwargs)
+        p = np.zeros(9)
+        p[0] = self.n 
+        p[1] = self.h 
+        p[2] = self.mu 
+        p[3] = self.gain
+        p[4] = self.a1
+        p[5] = self.b1 
+        p[6] = self.a2
+        p[7] = self.b2
+        p[8] = self.radius
+        return p  
+        
+
+    def computeKernel(self, **kwargs):
+        self.__dict__.update(kwargs)
+        p = self.parameterUnpack() 
+        self.kernel = imod.integralRoutines.make_Kernel(p, self.phi, self.theta)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

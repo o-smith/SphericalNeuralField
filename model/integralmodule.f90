@@ -2,7 +2,7 @@
 !the 2-sphere using the quadrature rules given in quadrature_rules.py 
 
 
-module make_routines
+module integralRoutines 
 
 use omp_lib
 implicit none
