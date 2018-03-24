@@ -4,10 +4,15 @@ sys.path.append('/Users/oliversmith/iso_octo/SHTOOLS-3.1')
 # import _SHTOOLS as sh
 import pyshtools as sh
 import numpy as np
-import integralmodule as imod 
 import numpy.polynomial.legendre as leg
+import quadrture_rules as qr 
 from scipy.special import legendre
 from scipy.linalg import norm, solve
+
+
+def greatcircledistance(phi1, theta1, phi2, theta2, radius):
+    a = np.cos(phi1)*np.cos(phi2) + np.sin(phi1)*np.sin(phi2)*np.cos(theta1-theta2)
+    return radius*np.acos(a) 
 
 
 class NeuralField:
@@ -241,25 +246,46 @@ class SphericalQuadratureNeuralField(NeuralField):
         super().__init__(**kwargs) 
 
 
-    def parameterUnpack(self, **kwargs): 
-        self.__dict__.update(kwargs)
-        p = np.zeros(9)
-        p[0] = self.n 
-        p[1] = self.h 
-        p[2] = self.mu 
-        p[3] = self.gain
-        p[4] = self.a1
-        p[5] = self.b1 
-        p[6] = self.a2
-        p[7] = self.b2
-        p[8] = self.radius
-        return p  
-        
+    def makeGrid(self, rule, **kwargs):
+        self.__dict__.update(kwargs) 
+        if rule == "Lebedev" or rule == "lebedev":
+            self.theta, self.phi, self.weights = qr.gen_grid() 
+            self.n = len(self.theta) 
+        elif rule == "Icosahedral" or rule == "icosahedral":
+            self.theta, self.phi, self.weights = generate_iso_grid('quadraturedata/qsph1-100-3432DP.txt')
+        else:
+            print "Quadrature rule %s not recognised" %rule 
+            raise Exception
+        self.n = len(self.theta) 
+
 
     def computeKernel(self, **kwargs):
         self.__dict__.update(kwargs)
-        p = self.parameterUnpack() 
-        self.kernel = imod.integralRoutines.make_Kernel(p, self.phi, self.theta)
+        self.kernel = np.zeros((self.n, self.n)) 
+        for i in range(n):
+            for j in range(n):
+                d = greatcircledistance(self.phi[i], self.theta[i],
+                    self.phi[j], self.theta[j], self.radius) 
+                self.kernel[i,j] = self.a1*np.exp(-d*d/self.b1) - self.a2*np.exp(-d*d/self.b2)
+
+
+    def make_u0(self, sigma, amp, **kwargs):
+        self.__dict__.update(kwargs) 
+        return amp*np.exp(-((self.phi - np.pi/2.0)**2 + (self.theta + np.pi/2.0)**2)  
+                                                /(2.0*sigma**2))
+
+
+    def makeF(self, u, **kwargs):
+        self.__dict__.update(kwargs) 
+        Svec = self.weights*self.S(u) 
+        return -u + self.gain*np.dot(self.kernel, Svec)
+
+
+    def makeJv(self, u, v, **kwargs):
+        self.__dict__.update(kwargs) 
+        dSvec = self.weights*v*self.dS(u)
+        return -v + self.gain*np.dot(self.kernel, dSvec)  
+
 
 
 
