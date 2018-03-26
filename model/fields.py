@@ -5,14 +5,17 @@ sys.path.append('/Users/oliversmith/iso_octo/SHTOOLS-3.1')
 import pyshtools as sh
 import numpy as np
 import numpy.polynomial.legendre as leg
-import quadrture_rules as qr 
+import quadrature_rules as qr 
+import matplotlib.pyplot as plt
 from scipy.special import legendre
 from scipy.linalg import norm, solve
+from matplotlib import cm, colors
+from mpl_toolkits.mplot3d import Axes3D
 
 
 def greatcircledistance(phi1, theta1, phi2, theta2, radius):
     a = np.cos(phi1)*np.cos(phi2) + np.sin(phi1)*np.sin(phi2)*np.cos(theta1-theta2)
-    return radius*np.acos(a) 
+    return radius*np.arccos(a) 
 
 
 class NeuralField:
@@ -35,7 +38,7 @@ class NeuralField:
 
         #Default parameter settings 
         self.a1, self.b1, self.a2, self.b2 = 6.6, 1.0/28.0, 5.0, 1.0/20.0
-        self.h, self.mu, self.kappa = 0.35, 8.0, 50.0
+        self.h, self.mu, self.kappa = 0.35, 8.0, 49.3155529412
         self.radius = 1.0 
         self.lambda_ord = 10
         self.lmax = 40 
@@ -75,7 +78,7 @@ class SphericalHarmonicNeuralField(NeuralField):
 
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs) 
+        NeuralField.__init__(self, **kwargs) 
 
 
     def makeGrid(self, **kwargs):
@@ -174,7 +177,8 @@ class SphericalHarmonicNeuralField(NeuralField):
         return Jac
 
 
-    def make_u0(self, sigma=0.6, amp=5.0):
+    def make_u0(self, sigma=0.6, amp=5.0, **kwargs):
+        self.__dict__.update(kwargs)
         
         #Make a Gaussian bump
         state = np.zeros((self.n, 2*self.n))
@@ -187,10 +191,9 @@ class SphericalHarmonicNeuralField(NeuralField):
         return self.u0
 
 
-    def makeF(self, u, p):
+    def makeF(self, u, **kwargs):
+        self.__dict__.update(kwargs) 
     
-        self.h = p[0]
-        self.mu = p[1]
         umat = u.reshape(self.n, 2*self.n) 
         
         #Project firing rate into the harmonics
@@ -212,10 +215,9 @@ class SphericalHarmonicNeuralField(NeuralField):
         return temp.reshape(2*self.n*self.n) 
     
     
-    def makeJv(self, v, u, p):
+    def makeJv(self, v, u, **kwargs):
+        self.__dict__.update(kwargs) 
     
-        self.h = p[0]
-        self.mu = p[1]
         umat = u.reshape(self.n, 2*self.n) 
         vmat = v.reshape(self.n, 2*self.n)
         
@@ -243,33 +245,39 @@ class SphericalQuadratureNeuralField(NeuralField):
 
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs) 
+        NeuralField.__init__(self, **kwargs) 
 
 
     def makeGrid(self, rule, **kwargs):
         self.__dict__.update(kwargs) 
+        self.rule = rule 
         if rule == "Lebedev" or rule == "lebedev":
             self.theta, self.phi, self.weights = qr.gen_grid() 
             self.n = len(self.theta) 
         elif rule == "Icosahedral" or rule == "icosahedral":
-            self.theta, self.phi, self.weights = generate_iso_grid('quadraturedata/qsph1-100-3432DP.txt')
+            self.theta, self.phi, self.weights = qr.generate_iso_grid('model/quadraturedata/qsph1-100-3432DP.txt')
         else:
             print "Quadrature rule %s not recognised" %rule 
             raise Exception
         self.n = len(self.theta) 
+        self.W = np.diag(self.weights) 
 
 
     def computeKernel(self, **kwargs):
         self.__dict__.update(kwargs)
         self.kernel = np.zeros((self.n, self.n)) 
-        for i in range(n):
-            for j in range(n):
-                d = greatcircledistance(self.phi[i], self.theta[i],
-                    self.phi[j], self.theta[j], self.radius) 
+        print "Computing kernel..."
+        for i in range(self.n):
+            for j in range(self.n):
+                if i == j:
+                    d = 0.0
+                else:
+                    d = greatcircledistance(self.phi[i], self.theta[i],
+                        self.phi[j], self.theta[j], self.radius) 
                 self.kernel[i,j] = self.a1*np.exp(-d*d/self.b1) - self.a2*np.exp(-d*d/self.b2)
 
 
-    def make_u0(self, sigma, amp, **kwargs):
+    def make_u0(self, sigma=0.5, amp=5.0, **kwargs):
         self.__dict__.update(kwargs) 
         return amp*np.exp(-((self.phi - np.pi/2.0)**2 + (self.theta + np.pi/2.0)**2)  
                                                 /(2.0*sigma**2))
@@ -277,14 +285,20 @@ class SphericalQuadratureNeuralField(NeuralField):
 
     def makeF(self, u, **kwargs):
         self.__dict__.update(kwargs) 
-        Svec = self.weights*self.S(u) 
-        return -u + self.gain*np.dot(self.kernel, Svec)
+        Svec = np.dot(self.W, self.S(u))
+        if self.rule == "lebedev" or self.rule == "Lebedev":
+            return -u + 4.0*np.pi*self.kappa*np.dot(self.kernel, Svec)
+        else:
+            return -u + self.kappa*np.dot(self.kernel, Svec)
 
 
     def makeJv(self, u, v, **kwargs):
         self.__dict__.update(kwargs) 
-        dSvec = self.weights*v*self.dS(u)
-        return -v + self.gain*np.dot(self.kernel, dSvec)  
+        dSvec = np.dot(self.W, v*self.dS(u)) 
+        if self.rule == "lebedev" or self.rule == "Lebedev":
+            return -v + 4.0*np.pi*self.kappa*np.dot(self.kernel, dSvec)
+        else:
+            return -v + self.kappa*np.dot(self.kernel, dSvec)  
 
 
 
@@ -328,40 +342,14 @@ def interp_norm(u, phi, theta):
 def kernel(p, theta, phi):
 
     return im.make_routines.make_kernel(p, theta, phi)
-
-
-def dist(phi1, theta1, phi2, theta2, radius=1):
-    
-    a = np.cos(phi1)*np.cos(phi2) + \
-        np.sin(phi1)*np.sin(phi2)*np.cos(theta1 - theta2)
-    return radius*np.arccos(a)
-
-       
-def make_u0(theta, phi, sigma=0.6, amp=5.0):
-    
-    #Make a Gaussian bump
-    return amp*np.exp(-((phi - np.pi/2.0)**2 + (theta + np.pi/2.0)**2)  
-                                                /(2.0*sigma**2))
-    
-
-def F(t, u, param, theta, phi, kern, w): 
-    
-    #Call the underlying Fortran routine make_F
-    return im.make_routines.make_f(param,theta,phi,kern,w,u)
-          
-                  
-def Jv(v, param, theta, phi, kern, w, u):
-    
-    #Call the underlying Fortran routine make_Jv
-    return im.make_routines.make_jv(param,theta,phi,kern,w,u,v) 
     
     
 def harmonicplot(theta, phi, u, un, fname, band_lim=20, threeD=False):
 
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_aspect('equal')
-    plt.tight_layout()
+    ax = fig.add_subplot(111)
+    # ax.set_aspect('equal')
+    # plt.tight_layout()
     
     #Convert grid to match the conventions of the SH library
     phid = np.degrees(phi)
@@ -380,17 +368,20 @@ def harmonicplot(theta, phi, u, un, fname, band_lim=20, threeD=False):
     #Set colour map
     norm=colors.Normalize(vmin = np.min(raster_n),
                           vmax = np.max(raster_n), clip = False)
+
+    m = cm.ScalarMappable(cmap="viridis", norm=norm)
+    m.set_array(u)
                           
     
     #Render image as either a chart or a 3D image
     if threeD==False:
         ax.imshow(raster, cmap='viridis', norm=norm)
-        ax.colorbar(shrink=0.5)
-        ax.xlabel('$\\theta$',fontsize=26)
-        ax.ylabel('$\phi$', fontsize=26, rotation=0, labelpad=15)
-        ax.xticks([])
-        ax.yticks([])
-        ax.tight_layout()
+        plt.colorbar(m, shrink=0.5)
+        ax.set_xlabel('$\\theta$',fontsize=26)
+        ax.set_ylabel('$\phi$', fontsize=26, rotation=0, labelpad=15)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        plt.tight_layout()
         
     else:
         #Make 3D lat-lon grid
@@ -414,9 +405,12 @@ def harmonicplot(theta, phi, u, un, fname, band_lim=20, threeD=False):
         m.set_array(raster_n)
         cbar = plt.colorbar(m, shrink=0.5) 
         
-    plt.savefig(fname, format='jpg')
-    ax.cla()
-    plt.close()
+    if fname == None:
+        plt.show()
+    else:
+        plt.savefig(fname, format='jpg')
+        ax.cla()
+        plt.close()
         
         
 
