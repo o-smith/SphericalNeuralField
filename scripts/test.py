@@ -1,4 +1,6 @@
 from model.fields import *
+from numerics.interpolation import * 
+from numerics.solvers import * 
 import matplotlib.pyplot as plt 
 from scipy.integrate import ode
 import numpy as np 
@@ -27,11 +29,11 @@ import numpy as np
 # plt.show() 
 
 field = SphericalQuadratureNeuralField() 
-field.makeGrid("icosahedral")
+field.makeGrid("lebedev")
 field.computeKernel() 
-field.h = 0.0
+field.h = 0.5
 
-u0 = field.make_u0()*0.0
+u0 = field.make_u0()
 makeFt = lambda t, x: field.makeF(x)
 t0, dt = 0.0, 0.1
 du = ode(makeFt, jac=None)
@@ -45,4 +47,23 @@ while du.t < 100.0:
    print du.t
 u = du.y
 
-harmonicplot(field.theta, field.phi, u, u, None)
+
+u1, count, info, conv = newtonGMRES(field.makeJv, field.makeF, u, noisy=True, toler=1e-14)
+
+print count, info, conv 
+
+u2 = u1 + field.make_u0()*0.0000001
+
+u3, count, info, conv = newtonGMRES(field.makeJv, field.makeF, u2, noisy=True, toler=1e-14)
+
+print count, info, conv 
+
+# harmonicplot(field.theta, field.phi, u1, u1, None, threeD=True)
+
+
+
+
+
+
+
+
