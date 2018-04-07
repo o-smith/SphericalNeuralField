@@ -9,6 +9,7 @@ import numpy as np
 import numpy.polynomial.legendre as leg
 import quadrature_rules as qr 
 from scipy.special import legendre
+from numerics.utilities import update_progress 
 
 
 def greatcircledistance(phi1, theta1, phi2, theta2, radius):
@@ -265,6 +266,7 @@ class SphericalQuadratureNeuralField(NeuralField):
         self.kernel = np.zeros((self.n, self.n)) 
         print "Computing kernel..."
         for i in range(self.n):
+            update_progress(float(i)/float(self.n))
             for j in range(self.n):
                 if i == j:
                     d = 0.0
@@ -272,7 +274,7 @@ class SphericalQuadratureNeuralField(NeuralField):
                     d = greatcircledistance(self.phi[i], self.theta[i],
                         self.phi[j], self.theta[j], self.radius)
                 self.kernel[i,j] = self.a1*np.exp(-d*d/self.b1) - self.a2*np.exp(-d*d/self.b2)
-
+        print "\nDone" 
 
     def make_u0(self, sigma=0.6, amp=5.0, **kwargs):
         self.__dict__.update(kwargs) 

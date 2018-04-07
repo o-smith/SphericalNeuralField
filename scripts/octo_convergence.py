@@ -7,7 +7,9 @@ from numerics.utilities import *
 from numpy.linalg import cond 
 import matplotlib.pyplot as plt 
 import numpy as np 
+import time 
 
+print "Testing the Neural field convergence using the octahedral Lebedev quadrature scheme..."
 
 #Make the neural field model 
 field = SphericalQuadratureNeuralField() 
@@ -55,7 +57,6 @@ uptrb = u1 + field.make_u0(sigma=1.5)*0.04
 u2, count, info, conv, err = newtonGMRES(field.makeJv, field.makeF, uptrb, noisy=True,
 	toler=1e-17, nmax=20, convobject=convergence_recorder, gmres_tol=1e-17) 
 
-print conv, count 
 
 #Plot the convergence results 
 fig = plt.figure() 
@@ -72,6 +73,18 @@ ax1.set_xlabel("Iterations")
 ax1.set_ylabel("2-norm residual", rotation=90, labelpad=10) 
 ax1.set_title("Convergence of Newton's method")
 plt.show() 
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
