@@ -5,17 +5,20 @@ from numerics.solvers import *
 import matplotlib.pyplot as plt 
 import numpy as np 
 
-print "Testing the Neural field convergence using the octahedral Lebedev quadrature scheme..."
+print "Testing the Neural field convergence using the spherical harmonics method..."
 
 #Make the neural field model 
-field = SphericalQuadratureNeuralField() 
-field.makeGrid("lebedev")
-field.computeKernel() 
+field = SphericalHarmonicNeuralField() 
+field.makeGrid(lmax=20) 
+field.makeWn() 
 
 #Load in a state from the octahedral branch and set the 
 #system parameters to match this point on the branch 
-u = np.genfromtxt("data/octo_states/state_0.630764_9.142467.txt") 
-field.h = 0.630764
+u = np.genfromtxt("data/O2_states/state_0.189430_176.120282.txt") 
+field.h = 0.189430
+
+#Print the norm of the measure of this state
+print "Measure of imported state = %f" %field.finer_measure(u)  
 
 #Initialise an object to pass to the solver to 
 #record the convergence history 
@@ -29,9 +32,12 @@ else:
 	print "Stationary state not found."
 	raise Exception
 
+#Print the new norm 
+print "Perturbed measure  %f" %field.finer_measure(u) 
+
 #Perturb this state with a low amplitude Gaussian bump
 print "Perturbing this state..."
-uptrb = u1 + field.make_u0(sigma=1.5)*0.04
+uptrb = u1 + field.make_u0(amp=0.5).reshape(2*field.n*field.n)
 
 #Now pass this perturbed state to Newton-GMRES to see how quickly it converges
 #back to the ground state. The convergence recorder object will be passed down
@@ -40,6 +46,10 @@ uptrb = u1 + field.make_u0(sigma=1.5)*0.04
 u2, count, info, conv, err = newtonGMRES(field.makeJv, field.makeF, uptrb, noisy=True,
 	toler=1e-17, nmax=20, convobject=convergence_recorder, gmres_tol=1e-17) 
 
+#Print the norm of the newly solved state, it should be the same as before the 
+#perturbation was applied
+#Print the new norm 
+print "Measure of newly found state = %f" %field.finer_measure(u) 
 
 #Plot the convergence results 
 fig = plt.figure() 
@@ -56,19 +66,3 @@ ax1.set_xlabel("Iterations")
 ax1.set_ylabel("2-norm residual", rotation=90, labelpad=10) 
 ax1.set_title("Convergence of Newton's method")
 plt.show() 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

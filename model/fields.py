@@ -10,6 +10,7 @@ import numpy.polynomial.legendre as leg
 import quadrature_rules as qr 
 from scipy.special import legendre
 from numerics.utilities import update_progress 
+from numpy.linalg import norm
 
 
 def greatcircledistance(phi1, theta1, phi2, theta2, radius):
@@ -91,6 +92,26 @@ class SphericalHarmonicNeuralField(NeuralField):
         self.lon = np.arange(0.0, 360.0, lonspacing)
         self.phi =  np.deg2rad(self.lat + 90.)
         self.theta = np.deg2rad(self.lon) 
+
+
+    def finer_measure(self, u, l=40):
+        """
+        Function that takes a state u in column-major format and interpolates
+        it onto a finer latitude-longitude grid, specifically the the same
+        grid used in the interp_measure function. The function then 
+        returns the value || u - <u> ||_2. 
+
+        This function allows states computed in the harmonic method to 
+        be measured on the same grid and with the same measure as those computed 
+        using the quadrature schemes.
+        """
+
+        utemp = u.reshape((self.n, 2*self.n))
+        cilm = sh.SHExpandDH(utemp, sampling=2) 
+        ufine = sh.MakeGridDH(cilm, sampling=2, lmax=40) 
+        mu = np.mean(ufine) 
+        y = ufine - mu 
+        return norm(y, ord=2) 
 
 
     def kernel(self, xi):

@@ -19,6 +19,7 @@ class KrylovCounter(object):
         print self.counter, rk
 
 
+
 def newtonGMRES(jacfunc, func, u, toler=1e-5, restrt=40, gmres_tol=1e-5,
                 nmax=8, gmres_max=1000, convobject=None, noisy=False, **kwargs):
     """This function computes the stationary solution to a generic  nonlinear
@@ -29,9 +30,7 @@ def newtonGMRES(jacfunc, func, u, toler=1e-5, restrt=40, gmres_tol=1e-5,
     n = len(u)
     counter = 0
     convergence = False
-
-    print "parameters are:", gmres_tol, toler 
-
+    
     #Make linear operator
     mv = lambda v: jacfunc(v, u, **kwargs)
     A = alg.LinearOperator((n,n), matvec=mv, dtype='float64')
@@ -115,7 +114,6 @@ def number_of_pos(jacfunc, u, p, k=300, toler=1e-8):
     for i in range(k):
         if np.real(w[i]) > 0.0:
             num_postitive += 1
-
     return num_postitive
 
 

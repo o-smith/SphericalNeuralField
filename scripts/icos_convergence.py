@@ -5,16 +5,16 @@ from numerics.solvers import *
 import matplotlib.pyplot as plt 
 import numpy as np 
 
-print "Testing the Neural field convergence using the octahedral Lebedev quadrature scheme..."
+print "Testing the Neural field convergence using the icosahedral quadrature scheme..."
 
 #Make the neural field model 
 field = SphericalQuadratureNeuralField() 
-field.makeGrid("lebedev")
+field.makeGrid("icosahedral")
 field.computeKernel() 
 
 #Load in a state from the octahedral branch and set the 
 #system parameters to match this point on the branch 
-u = np.genfromtxt("data/octo_states/state_0.630764_9.142467.txt") 
+u = np.genfromtxt("...") 
 field.h = 0.630764
 
 #Initialise an object to pass to the solver to 
@@ -56,19 +56,3 @@ ax1.set_xlabel("Iterations")
 ax1.set_ylabel("2-norm residual", rotation=90, labelpad=10) 
 ax1.set_title("Convergence of Newton's method")
 plt.show() 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 
 
-def interp_norm(u, phi, theta):
+def interp_measure(u, phi, theta):
     
     lmax = 40
     n = 2*lmax + 2
