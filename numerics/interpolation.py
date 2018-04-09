@@ -9,7 +9,7 @@ import numpy as np
 from matplotlib import cm, colors
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
-
+from numpy.linalg import norm
 
 
 def interp_measure(u, phi, theta):

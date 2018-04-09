@@ -30,7 +30,7 @@ def newtonGMRES(jacfunc, func, u, toler=1e-5, restrt=40, gmres_tol=1e-5,
     n = len(u)
     counter = 0
     convergence = False
-    
+
     #Make linear operator
     mv = lambda v: jacfunc(v, u, **kwargs)
     A = alg.LinearOperator((n,n), matvec=mv, dtype='float64')
@@ -55,7 +55,7 @@ def newtonGMRES(jacfunc, func, u, toler=1e-5, restrt=40, gmres_tol=1e-5,
                                 maxiter=gmres_max)
         if info > 0:
             return u, counter, info, convergence
-
+            
         #Update solution
         u += x
 

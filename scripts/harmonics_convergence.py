@@ -32,12 +32,12 @@ else:
 	print "Stationary state not found."
 	raise Exception
 
-#Print the new norm 
-print "Perturbed measure  %f" %field.finer_measure(u) 
-
 #Perturb this state with a low amplitude Gaussian bump
 print "Perturbing this state..."
 uptrb = u1 + field.make_u0(amp=0.5).reshape(2*field.n*field.n)
+
+#Print the new norm 
+print "Perturbed measure  %f" %field.finer_measure(u) 
 
 #Now pass this perturbed state to Newton-GMRES to see how quickly it converges
 #back to the ground state. The convergence recorder object will be passed down
