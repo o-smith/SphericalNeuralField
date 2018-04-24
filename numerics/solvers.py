@@ -20,8 +20,8 @@ class KrylovCounter(object):
 
 
 
-def newtonGMRES(jacfunc, func, u, toler=1e-5, restrt=40, gmres_tol=1e-5,
-                nmax=8, gmres_max=1000, convobject=None, noisy=False, **kwargs):
+def newton_gmres(jacfunc, func, u, p, toler=1e-5, restrt=40, gmres_tol=1e-5,
+                nmax=8, gmres_max=1000, convobject=None, noisy=False):
     """This function computes the stationary solution to a generic  nonlinear
     problem. It uses matrix-free newton-gmres.
     """
@@ -32,7 +32,7 @@ def newtonGMRES(jacfunc, func, u, toler=1e-5, restrt=40, gmres_tol=1e-5,
     convergence = False
 
     #Make linear operator
-    mv = lambda v: jacfunc(v, u, **kwargs)
+    mv = lambda v: jacfunc(v, u, p)
     A = alg.LinearOperator((n,n), matvec=mv, dtype='float64')
 
     if convobject != None:
@@ -40,7 +40,7 @@ def newtonGMRES(jacfunc, func, u, toler=1e-5, restrt=40, gmres_tol=1e-5,
 
     while True:
 
-        f = func(u, **kwargs) #Make right hand side
+        f = func(u, p) #Make right hand side
 
         #Call GMRES and make sure it converged
         if convobject != None:
@@ -55,7 +55,7 @@ def newtonGMRES(jacfunc, func, u, toler=1e-5, restrt=40, gmres_tol=1e-5,
                                 maxiter=gmres_max)
         if info > 0:
             return u, counter, info, convergence
-            
+
         #Update solution
         u += x
 
@@ -80,13 +80,13 @@ def newtonGMRES(jacfunc, func, u, toler=1e-5, restrt=40, gmres_tol=1e-5,
 
 
 
-def arnoldi(jacfunc, u, kk=1, toler=1e-5, what='LR',
+def arnoldi(jacfunc, u, p, kk=1, toler=1e-5, what='LR',
              eigenvectors=False):
     """Function to compute eigenvalues of the Jacobian."""
 
     #Make linear operator
     n = len(u)
-    mv = lambda v: jacfunc(v, u, **kwargs) 
+    mv = lambda v: jacfunc(v, u, p) 
     A = alg.LinearOperator((n,n), matvec=mv, dtype='float64')
 
     #Call scipy

@@ -70,7 +70,12 @@ class NeuralField:
         """    
         self.__dict__.update(kwargs)
         s = self.S(u)
-        return (self.mu**2)*s*(1.0 - s)*(1.0 - 2.0*s)
+        return (self.mu**2)*s*(1.0 - s)*(1.0 - 2.0*s) 
+
+    def param_unpack(self, p):
+        self.h, self.mu, self.kappa, self.radius = p[0], p[1], p[2], p[3]
+        self.a1, self.b1, self.a2, self.b2 = p[4], p[5], p[6], p[7]  
+
 
 
 
@@ -211,8 +216,9 @@ class SphericalHarmonicNeuralField(NeuralField):
         return self.u0
 
 
-    def makeF(self, u, **kwargs):
+    def makeF(self, u, p, **kwargs):
         self.__dict__.update(kwargs) 
+        self.param_unpack(p) 
     
         umat = u.reshape(self.n, 2*self.n) 
         
@@ -235,8 +241,9 @@ class SphericalHarmonicNeuralField(NeuralField):
         return temp.reshape(2*self.n*self.n) 
     
     
-    def makeJv(self, v, u, **kwargs):
-        self.__dict__.update(kwargs) 
+    def makeJv(self, v, u, p, **kwargs):
+        self.__dict__.update(kwargs)
+        self.param_unpack(p)  
     
         umat = u.reshape(self.n, 2*self.n) 
         vmat = v.reshape(self.n, 2*self.n)
@@ -294,6 +301,8 @@ class SphericalQuadratureNeuralField(NeuralField):
                 else:
                     d = greatcircledistance(self.phi[i], self.theta[i],
                         self.phi[j], self.theta[j], self.radius)
+                if d >= np.pi:
+                    d = np.pi 
                 self.kernel[i,j] = self.a1*np.exp(-d*d/self.b1) - self.a2*np.exp(-d*d/self.b2)
         print "\nDone" 
 
@@ -303,17 +312,19 @@ class SphericalQuadratureNeuralField(NeuralField):
                                                 /(2.0*sigma**2))
 
 
-    def makeF(self, u, **kwargs):
+    def makeF(self, u, p, **kwargs):
         self.__dict__.update(kwargs) 
+        self.param_unpack(p)
         Svec = self.weights*self.S(u)
         if self.rule == "lebedev" or self.rule == "Lebedev":
             return -u + 4.0*np.pi*self.kappa*np.dot(self.kernel, Svec)
-        else:
+        else: 
             return -u + self.kappa*np.dot(self.kernel, Svec)
 
 
-    def makeJv(self, v, u, **kwargs): 
+    def makeJv(self, v, u, p, **kwargs): 
         self.__dict__.update(kwargs) 
+        self.param_unpack(p)  
         dSvec = self.weights*v*self.dS(u) 
         if self.rule == "lebedev" or self.rule == "Lebedev":
             return -v + 4.0*np.pi*self.kappa*np.dot(self.kernel, dSvec)

@@ -1,40 +1,44 @@
 #! usr/bin/env python 
 
+import sys
 import numpy as np 
 import scipy.sparse.linalg as alg 
 from numpy.linalg import norm 
+from numerics.solvers import *
+from numerics.bif import *  
 
-def extended_system(jfunc, func, v, p, step, v1, output=1, w=None, epslon=1e-5):
+def extended_system(output, jfunc, func, v, p, step, tang, v1, w=None, epslon=1e-5, whichpar=0):
 
 	#Allocate space 
 	n = len(v) - 1 
+	p[whichpar] = v[n]
 	F = np.zeros(n+1) 
 	if output == 2:
 		Jw = np.zeros(n+1) 
 
 	#Construct the right hand side 
-	F[:n] = func(v[:n]) 
+	F[:n] = func(v[:n], p) 
 	F[n] = np.dot(tang, (v-v1)) - step 
 	if output == 1:
 		return F 
 
 	#Construct extended Jacobian-vector product 
 	if output == 2:
-        Jw[:n] = Jfunc(w[:n], v[:n])
-        pert = v[n] + epslon
-        Jw[:n] += w[n]*(func(v[:n], p=pert) - F[:n])/epslon
-        Jw[n] = np.dot(tang, w)
-        return Jw
+		Jw[:n] = jfunc(w[:n], v[:n], p)
+		p[whichpar] = v[n] + epslon
+		Jw[:n] += w[n]*(func(v[:n], p) - F[:n])/epslon
+		Jw[n] = np.dot(tang, w)
+		return Jw
 
 
-def stability(jacfunc, u, tolerance=1e-5):
+def stability(jacfunc, u, p, tolerance=1e-5):
     """Function to assess the stability of a solution by evaluating the
     largest eigenvalues of the Jacobian evaluated at that solution. This
     function then returns a value of 0 if the largest eigenvalue is negative
     (denoting stability) or 1 if not (denoting instability).
     """
 
-    y = arnoldi(jacfunc, u, toler=tolerance)
+    y = arnoldi(jacfunc, u, p, toler=tolerance)
     if y > 0.0 :
         return 1
     else:
@@ -42,14 +46,14 @@ def stability(jacfunc, u, tolerance=1e-5):
 
 
 def secant_continuation(Jfunc, func, measure,
-                       u, p, txtfilename=None,
+                       u, p, filename, txtfilename=None, 
                        init_direction=-1.0, soloutfreq=20, solout=False,
-                       whichpar=1, soltol=1e-4, eigtol=1e-5, newtonmax=8,
+                       whichpar=0, soltol=1e-3, eigtol=1e-1, newtonmax=16,
                        optimalcount=4, epsilon=1e-5,
                        llimit=None, ulimit=None, count_max=None,
-                       step_size=0.1, step_factorup=2.0,
+                       step_size=0.1, step_factorup=1.5,
                        step_factordown=2.0, plotting=False,
-                       step_min=1e-5, step_max=0.25, krylov_max=50,
+                       step_min=1e-5, step_max=0.2, krylov_max=40,
                        stability_analysis=True):
 
 
@@ -71,7 +75,7 @@ def secant_continuation(Jfunc, func, measure,
 
             #Find an initial branch point
             n = len(u)
-            u0 = newton_gmres(Jfunc, func, u, p, toler=soltol,
+            u0 = newton_gmres(Jfunc, func, u, p, toler=1e-14,
                               nmax=50,
                               gmres_max=200)[0]
 
@@ -83,16 +87,16 @@ def secant_continuation(Jfunc, func, measure,
             if stability_analysis:
                 s = stability(Jfunc, xi0[:n], p, tolerance=eigtol)
             y = measure(xi0[:n])
-            print 'Continuation parameter =', p[whichpar]
+            print 'Continuation parameter =', p[whichpar]  
             print 'Norm =', y
             print 'Stability =', s
 
-            #Save the full solution
-            soloutfilename = 'kernel2bifs/octo/isola/state_%f' %p[whichpar]
-            soloutfilename += '_%f' %y
-            soloutfilename += '.txt'
-            if solout:
-                np.savetxt(soloutfilename, xi0[:n])
+            # #Save the full solution
+            # soloutfilename = 'kernel2bifs/octo/isola/state_%f' %p[whichpar]
+            # soloutfilename += '_%f' %y
+            # soloutfilename += '.txt'
+            # if solout:
+            #     np.savetxt(soloutfilename, xi0[:n])
 
             #Record this data point
             if txtfilename != None:
@@ -100,8 +104,8 @@ def secant_continuation(Jfunc, func, measure,
                 wr.write(" ".join(map(str,outyvector))+"\n")
 
             #Do a step of natural parameter continuation
-            p[whichpar] += 0.001*init_direction
-            u1 = newton_gmres(Jfunc, func, xi0[:n], p, toler=soltol,
+            p[whichpar] += 0.01*init_direction
+            u1 = newton_gmres(Jfunc, func, xi0[:n], p, toler=1e-14,
                               nmax=newtonmax, gmres_max=krylov_max)[0]
 
             #Make another extended vector
@@ -122,19 +126,20 @@ def secant_continuation(Jfunc, func, measure,
                 wr.write(" ".join(map(str,outyvector))+"\n")
 
             #So we now have two previous points, xi0 and xi1
-            step = step_size
+            step = 0.01
             tang = (xi1-xi0)/norm(xi1-xi0, ord=2)
 
             #Make "function handles" to construct the extended problem
-            Gfunc  = lambda u, p: ExtendedSystem(Jfunc, func, u, tang, p,
-                                    step, xi1, output=1, whichpar=whichpar)
-            dGfunc = lambda w, u, p: ExtendedSystem(Jfunc, func, u,
-                                    tang, p, step, xi1, output=2, w=w,
+            Gfunc  = lambda u, p: extended_system(1, Jfunc, func, u, p,
+                                    step, tang, xi1, whichpar=whichpar)
+            dGfunc = lambda w, u, p: extended_system(2, Jfunc, func, u,
+                                    p, step, tang, xi1, w=w,
                                     whichpar=whichpar,
                                     epslon=1e-5)
 
             #Start prediction-correction
             counter = 0
+            p_out, u_out, s_out = [], [], [] 
             while True:
 
                 #Make tangent vector
@@ -153,10 +158,10 @@ def secant_continuation(Jfunc, func, measure,
                     conv = False
 
                 #Further checks to convergencce
-                if abs(norm(tmp) - norm(xi1)) > 2.0:
-                    conv = False
-                if (abs(tmp[n] - xi1[n])) > 0.5:
-                    conv = False
+                # if abs(norm(tmp) - norm(xi1)) > 2.0:
+                #     conv = False
+                # if (abs(tmp[n] - xi1[n])) > 0.5:
+                #     conv = False
 
                 if conv: #If Newton-GMRES converged, update solution
                     xi = tmp
@@ -171,20 +176,25 @@ def secant_continuation(Jfunc, func, measure,
                     print 'Norm =', y
                     print 'Stability =', s
                     print 'Counter =', counter
+                    p_out.append(p[whichpar])
+                    u_out.append(y)
+                    s_out.append(s) 
+                    if counter%10 == 0:
+                    	plot_bif(p_out, u_out, s_out) 
 
                     #Record this branch point
                     if txtfilename != None:
                         outyvector = (p[whichpar], y, float(s))
                         wr.write(" ".join(map(str,outyvector))+"\n")
 
-                    #Periodically record full solution
-                    if (counter % soloutfreq == 0):
-                        soloutfilename = ''
-                        soloutfilename = 'kernel2bifs/octo/isola/state_%f'  %p[whichpar]
-                        soloutfilename += '_%f' %y
-                        soloutfilename += '.txt'
-                        if solout:
-                            np.savetxt(soloutfilename, xi[:n])
+                    # #Periodically record full solution
+                    # if (counter % soloutfreq == 0):
+                    #     soloutfilename = ''
+                    #     soloutfilename = 'kernel2bifs/octo/isola/state_%f'  %p[whichpar]
+                    #     soloutfilename += '_%f' %y
+                    #     soloutfilename += '.txt'
+                    #     if solout:
+                    #         np.savetxt(soloutfilename, xi[:n])
 
                     #Update solution history
                     xi0 = xi1
@@ -239,11 +249,11 @@ def secant_continuation(Jfunc, func, measure,
                         return xi[:n]
 
         #Handle errors and user interruptions
-        except Exception:
-            print ' Exiting...'
-            if txtfilename != None:
-                wr.close()
-            sys.exit(0)
+        # except Exception:
+        #     print ' Exiting...'
+        #     if txtfilename != None:
+        #         wr.close()
+        #     sys.exit(0)
         except KeyboardInterrupt:
             print ' Exiting...'
             if txtfilename != None:
