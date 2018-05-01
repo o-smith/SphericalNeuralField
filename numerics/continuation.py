@@ -28,11 +28,11 @@ def bisect(jfunc, func, measure, u, p, init_direction=-1, whichpar=0, stability_
 	targ_old = 0
 	deltah = 0.1
 	counter = 0
-	print measure(uinit)
+	print measure(u)
 
 	#Solve equation and make extended vector
 	u0, ncounter, ninfo, conv = newton_gmres(
-	            jfunc, func, uinit, p, toler=1e-10,
+	            jfunc, func, u, p, toler=1e-10,
 	            nmax=30, gmres_max=100)
 	xi0[:n] = u0
 	xi0[n] = p[whichpar]
@@ -48,7 +48,7 @@ def bisect(jfunc, func, measure, u, p, init_direction=-1, whichpar=0, stability_
 	#Do one step of natural parameter continuation
 	p[whichpar] -= deltah
 	u1, ncounter, ninfo, conv = newton_gmres(
-	           jfunc, func, xi0[:m], p, toler=1e-10,
+	           jfunc, func, xi0[:n], p, toler=1e-10,
 	            nmax=30, gmres_max=100)
 	xi1[:n] = u1
 	xi1[n] = p[whichpar]
@@ -63,6 +63,7 @@ def bisect(jfunc, func, measure, u, p, init_direction=-1, whichpar=0, stability_
 
 	#Begin bisection
 	x_old = x 
+	targ_old = 0 
 	print 'Beginning bisection...'
 	while abs(deltah) > 1e-5:
 
@@ -80,7 +81,7 @@ def bisect(jfunc, func, measure, u, p, init_direction=-1, whichpar=0, stability_
 
 		#Make extended vector
 		xi[:n] = utemp
-		xi[n] = p[1]
+		xi[n] = p[whichpar]
 
 		#Remember previous two solutions
 		np.copyto(xi0, xi1)
@@ -90,8 +91,8 @@ def bisect(jfunc, func, measure, u, p, init_direction=-1, whichpar=0, stability_
 		#Compute stability
 		print 'Arnoldi...'
 		if stability_bisect:
-			x = stability(jfunc, xi[:m], p, tolerance=1e-1)
-		normout = measure(xi[:m])
+			x = stability(jfunc, xi[:n], p, tolerance=1e-1)
+		normout = measure(xi[:n])
 		print p[whichpar], normout
 
 		#Bisect if target has been passed
@@ -108,6 +109,8 @@ def bisect(jfunc, func, measure, u, p, init_direction=-1, whichpar=0, stability_
 				print 'Bisecting!'
 				print 'deltah = %f' %deltah
 			targ_old = targ
+
+	return xi1, xi0, p 
 
 
 def extended_system(output, jfunc, func, v, p, step, tang, v1, w=None, epslon=1e-5, whichpar=0):
