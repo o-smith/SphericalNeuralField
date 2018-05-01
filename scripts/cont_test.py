@@ -6,15 +6,15 @@ from numerics.continuation import *
 from numerics.interpolation import * 
 
 #Make the neural field model 
-field = SphericalHarmonicNeuralField() 
-field.makeGrid(lmax=20) 
-field.makeWn() 
+field = SphericalQuadratureNeuralField() 
+field.makeGrid("icosahedral")
+field.computeKernel() 
 
 #Load in a state from the octahedral branch and set the 
 #system parameters to match this point on the branch 
-u = np.genfromtxt("data/O2_states/state_0.189430_176.120282.txt") 
+u = np.genfromtxt("data/icos_states/state_0.621556_78.590470.txt") 
 p = np.zeros(8) 
-p[0] = 0.189430 
+p[0] = 0.621556 
 p[1] = 8.0
 p[2] = 49.3155529412
 p[3] = 1.0
@@ -24,5 +24,7 @@ p[6] = 5.0
 p[7] = 1.0/20.0
 field.param_unpack(p)
 
-secant_continuation(field.makeJv, field.makeF, field.finer_measure, u, p, "dump.txt",
+measure = lambda u: interp_measure(u, field.phi, field.theta) 
+
+secant_continuation(field.makeJv, field.makeF, measure, u, p, "dump.txt",
 			txtfilename="test.txt")

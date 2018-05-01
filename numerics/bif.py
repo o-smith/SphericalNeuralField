@@ -37,9 +37,9 @@ def plot_bif(p, u, s):
             g_u.append(i[0][1])
         #Plot as dashed or solid line
         if g_s:
-            plt.plot(g_p, g_u, linestyle='--', color='#39568C', linewidth=2.0)
+            plt.plot(g_p, g_u, linestyle='--', color=martaRed, linewidth=2.0)
         else:
-            plt.plot(g_p, g_u, linestyle='-', color='#39568C', linewidth=2.0)
+            plt.plot(g_p, g_u, linestyle='-', color=martaRed, linewidth=2.0)
 
     plt.ylabel('$||u||_{2}$', fontsize=24, rotation=0, labelpad = 26)
     plt.xlabel('$h$', fontsize=24)

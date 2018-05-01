@@ -5,7 +5,110 @@ import numpy as np
 import scipy.sparse.linalg as alg 
 from numpy.linalg import norm 
 from numerics.solvers import *
-from numerics.bif import *  
+from numerics.bif import * 
+
+
+def bisect_targeter(h, target):
+    if h > target:
+        return 0
+    else:
+        return 1
+
+
+def bisect(jfunc, func, measure, u, p, init_direction=-1, whichpar=0, stability_bisect=False, target=0.35):
+
+	#Vectors to store things
+	n = len(u) 
+	uvector = np.zeros(n)
+	xi = np.zeros(n+1)
+	xi0 = np.zeros(n+1)
+	xi1 = np.zeros(n+1)
+
+	#Do simple parameter continuation of the resting state
+	targ_old = 0
+	deltah = 0.1
+	counter = 0
+	print measure(uinit)
+
+	#Solve equation and make extended vector
+	u0, ncounter, ninfo, conv = newton_gmres(
+	            jfunc, func, uinit, p, toler=1e-10,
+	            nmax=30, gmres_max=100)
+	xi0[:n] = u0
+	xi0[n] = p[whichpar]
+
+	#Compute stability
+	print 'Arnoldi...'
+	x = stability(jfunc, xi0[:n], p, tolerance=1e-1)
+
+	#Output data
+	normout = measure(xi0[:n])
+	print p[whichpar], normout, x
+
+	#Do one step of natural parameter continuation
+	p[whichpar] -= deltah
+	u1, ncounter, ninfo, conv = newton_gmres(
+	           jfunc, func, xi0[:m], p, toler=1e-10,
+	            nmax=30, gmres_max=100)
+	xi1[:n] = u1
+	xi1[n] = p[whichpar]
+
+	#Compute stability
+	print 'Arnoldi...'
+	x = stability(jfunc, xi1[:n], p, tolerance=1e-1)
+
+	#Output data
+	normout = measure(xi1[:n])
+	print p[whichpar], normout, x
+
+	#Begin bisection
+	x_old = x 
+	print 'Beginning bisection...'
+	while abs(deltah) > 1e-5:
+
+		#Make tangent vector
+		tang = (xi1 - xi0)/norm((xi1 - xi0), ord=2)
+
+		#Solve scalar equation
+		p[whichpar] -= deltah
+		utemp, ncounter, ninfo, conv = newton_gmres(
+		       jfunc, func, xi1[:n], p, toler=1e-6,
+		        nmax=30, gmres_max=400)
+		if conv==False:
+			print '\nOpps\n'
+			break
+
+		#Make extended vector
+		xi[:n] = utemp
+		xi[n] = p[1]
+
+		#Remember previous two solutions
+		np.copyto(xi0, xi1)
+		np.copyto(xi1, xi)
+		counter += 1
+
+		#Compute stability
+		print 'Arnoldi...'
+		if stability_bisect:
+			x = stability(jfunc, xi[:m], p, tolerance=1e-1)
+		normout = measure(xi[:m])
+		print p[whichpar], normout
+
+		#Bisect if target has been passed
+		if stability_bisect:
+			if x != x_old:
+				deltah = -deltah/2.0
+				print 'Bisecting!'
+				print 'deltah = %f' %deltah
+			x_old = x 
+		else:
+			targ = bisect_targeter(p[whichpar], target) 
+			if targ != targ_old:
+				deltah = -deltah/2.0
+				print 'Bisecting!'
+				print 'deltah = %f' %deltah
+			targ_old = targ
+
 
 def extended_system(output, jfunc, func, v, p, step, tang, v1, w=None, epslon=1e-5, whichpar=0):
 
@@ -87,16 +190,9 @@ def secant_continuation(Jfunc, func, measure,
             if stability_analysis:
                 s = stability(Jfunc, xi0[:n], p, tolerance=eigtol)
             y = measure(xi0[:n])
-            print 'Continuation parameter =', p[whichpar]  
-            print 'Norm =', y
-            print 'Stability =', s
-
-            # #Save the full solution
-            # soloutfilename = 'kernel2bifs/octo/isola/state_%f' %p[whichpar]
-            # soloutfilename += '_%f' %y
-            # soloutfilename += '.txt'
-            # if solout:
-            #     np.savetxt(soloutfilename, xi0[:n])
+            print 'Continuation parameter = %f' %p[whichpar]  
+            print 'Norm = %f' %y
+            print 'Stability = %i' %s
 
             #Record this data point
             if txtfilename != None:
@@ -116,9 +212,9 @@ def secant_continuation(Jfunc, func, measure,
             if stability_analysis:
                 s = stability(Jfunc, xi1[:n], p, tolerance=eigtol)
             y = measure(xi1[:n])
-            print 'Continuation parameter =', p[whichpar]
-            print 'Norm =', y
-            print 'Stability =', s
+            print 'Continuation parameter = %f' %p[whichpar]
+            print 'Norm = %f' %y
+            print 'Stability = %i' %s
 
             #Record this data point
             if txtfilename != None:
@@ -157,12 +253,6 @@ def secant_continuation(Jfunc, func, measure,
                 except OverflowError:
                     conv = False
 
-                #Further checks to convergencce
-                # if abs(norm(tmp) - norm(xi1)) > 2.0:
-                #     conv = False
-                # if (abs(tmp[n] - xi1[n])) > 0.5:
-                #     conv = False
-
                 if conv: #If Newton-GMRES converged, update solution
                     xi = tmp
                     p[whichpar] = xi[n]
@@ -172,10 +262,10 @@ def secant_continuation(Jfunc, func, measure,
                     if stability_analysis:
                         s = stability(Jfunc, xi[:n], p, tolerance=eigtol)
                     y = measure(xi[:n])
-                    print 'Continuation parameter =', p[whichpar]
-                    print 'Norm =', y
-                    print 'Stability =', s
-                    print 'Counter =', counter
+                    print 'Continuation parameter = %f' %p[whichpar]
+                    print 'Norm = %f' %y
+                    print 'Stability = %i' %s
+                    print 'Counter = %i' %counter
                     p_out.append(p[whichpar])
                     u_out.append(y)
                     s_out.append(s) 
@@ -186,15 +276,6 @@ def secant_continuation(Jfunc, func, measure,
                     if txtfilename != None:
                         outyvector = (p[whichpar], y, float(s))
                         wr.write(" ".join(map(str,outyvector))+"\n")
-
-                    # #Periodically record full solution
-                    # if (counter % soloutfreq == 0):
-                    #     soloutfilename = ''
-                    #     soloutfilename = 'kernel2bifs/octo/isola/state_%f'  %p[whichpar]
-                    #     soloutfilename += '_%f' %y
-                    #     soloutfilename += '.txt'
-                    #     if solout:
-                    #         np.savetxt(soloutfilename, xi[:n])
 
                     #Update solution history
                     xi0 = xi1
@@ -213,7 +294,7 @@ def secant_continuation(Jfunc, func, measure,
                             return xi[:n]
                     if ncounter < optimalcount:
                         if step < step_max:
-                            step = step*step_factorup
+                            step *= step_factorup
 
                     #Check stopping criteria
                     if ulimit != None:
@@ -240,7 +321,7 @@ def secant_continuation(Jfunc, func, measure,
 
                 else: #If Newton-GMRES did not converge
                     if step > step_min:
-                        step = step/step_factordown
+                        step /= step_factordown
                     else:
                         print 'Min step size reached without convergence.'
                         print 'Exiting...'
@@ -249,11 +330,12 @@ def secant_continuation(Jfunc, func, measure,
                         return xi[:n]
 
         #Handle errors and user interruptions
-        # except Exception:
-        #     print ' Exiting...'
-        #     if txtfilename != None:
-        #         wr.close()
-        #     sys.exit(0)
+        except Exception as e:
+            print e 
+            print 'Exiting...'
+            if txtfilename != None:
+                wr.close()
+            sys.exit(0)
         except KeyboardInterrupt:
             print ' Exiting...'
             if txtfilename != None:
