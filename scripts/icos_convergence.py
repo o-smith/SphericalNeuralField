@@ -12,6 +12,7 @@ print "Testing the Neural field convergence using the icosahedral quadrature sch
 field = SphericalQuadratureNeuralField() 
 field.makeGrid("icosahedral")
 field.computeKernel() 
+pvec = field.param_pack() 
 
 #Load in a state from the octahedral branch and set the 
 #system parameters to match this point on the branch 
@@ -24,9 +25,9 @@ print "Measure of the input state = %f" %interp_measure(u, field.phi, field.thet
 convergence_recorder = KrylovCounter() 
 
 #Call Newton-GRMES on this state and solve it to make sure it's stationary 
-u1, count, info, conv = newtonGMRES(field.makeJv, field.makeF, u, noisy=True, toler=1e-14)
+u1, count, info, conv = newton_gmres(field.makeJv, field.makeF, u, pvec, noisy=True, toler=1e-14)
 if conv:
-	print "Stationary state found on octahedral branch in %i iterations." %count 
+	print "Stationary state found on icosahedral branch in %i iterations." %count 
 else:
 	print "Stationary state not found."
 	raise Exception
@@ -40,7 +41,7 @@ print "Perturbed measure = %f" %interp_measure(u1, field.phi, field.theta)
 #back to the ground state. The convergence recorder object will be passed down
 #through Newton's method to GMRES and will capture its convergence during the 
 #first iteration of Newton's method 
-u2, count, info, conv, err = newtonGMRES(field.makeJv, field.makeF, uptrb, noisy=True,
+u2, count, info, conv, err = newton_gmres(field.makeJv, field.makeF, uptrb,pvec, noisy=True,
 	toler=1e-15, nmax=20, convobject=convergence_recorder, gmres_tol=1e-15) 
 
 #Print the norm of the newly solved state, it should be the same as before the 
@@ -63,3 +64,8 @@ ax1.set_xlabel("Iterations")
 ax1.set_ylabel("2-norm residual", rotation=90, labelpad=10) 
 ax1.set_title("Convergence of Newton's method")
 plt.show() 
+
+
+
+
+

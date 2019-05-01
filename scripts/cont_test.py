@@ -26,5 +26,4 @@ field.param_unpack(p)
 
 measure = lambda u: interp_measure(u, field.phi, field.theta) 
 
-secant_continuation(field.makeJv, field.makeF, measure, u, p, "dump.txt",
-			txtfilename="test.txt")
+secant_continuation(field.makeJv, field.makeF, measure, u, p, txtfilename="test.txt")

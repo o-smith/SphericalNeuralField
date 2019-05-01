@@ -1,13 +1,12 @@
 #! usr/bin/env python 
 
 import sys
-# sys.path.append('/usr/lib64/python2.7/site-packages/pyshtools')
-sys.path.append('/Users/oliversmith/iso_octo/SHTOOLS-3.1') 
-# import _SHTOOLS as sh
+sys.path.append('/Users/oliversmith/Desktop/iso_octo/SHTOOLS-3.1')
 import pyshtools as sh
 import numpy as np
 import numpy.polynomial.legendre as leg
 import quadrature_rules as qr 
+import integralmodule as im
 from scipy.special import legendre
 from numerics.utilities import update_progress 
 from numpy.linalg import norm
@@ -75,7 +74,6 @@ class NeuralField:
     def param_unpack(self, p):
         self.h, self.mu, self.kappa, self.radius = p[0], p[1], p[2], p[3]
         self.a1, self.b1, self.a2, self.b2 = p[4], p[5], p[6], p[7]  
-
 
 
 
@@ -265,6 +263,20 @@ class SphericalHarmonicNeuralField(NeuralField):
         #Return operator
         temp = -vmat + self.kappa*integral
         return temp.reshape(2*self.n*self.n) 
+
+    def param_pack(self, **kwargs):
+        self.__dict__.update(kwargs)
+        pvec = np.zeros(9)
+        pvec[0] = float(self.n) 
+        pvec[1] = self.h
+        pvec[2] = self.mu 
+        pvec[3] = self.kappa 
+        pvec[4] = self.a1 
+        pvec[5] = self.b1
+        pvec[6] = self.a2 
+        pvec[7] = self.b2 
+        pvec[8] = self.radius 
+        return pvec 
        
 
 
@@ -301,7 +313,7 @@ class SphericalQuadratureNeuralField(NeuralField):
                 else:
                     d = greatcircledistance(self.phi[i], self.theta[i],
                         self.phi[j], self.theta[j], self.radius)
-                if d >= np.pi:
+                if d == np.NaN or d >= np.pi: 
                     d = np.pi 
                 self.kernel[i,j] = self.a1*np.exp(-d*d/self.b1) - self.a2*np.exp(-d*d/self.b2)
         print "\nDone" 
@@ -315,7 +327,7 @@ class SphericalQuadratureNeuralField(NeuralField):
     def makeF(self, u, p, **kwargs):
         self.__dict__.update(kwargs) 
         self.param_unpack(p)
-        Svec = self.weights*self.S(u)
+        Svec = np.dot(np.diag(self.weights), self.S(u)) 
         if self.rule == "lebedev" or self.rule == "Lebedev":
             return -u + 4.0*np.pi*self.kappa*np.dot(self.kernel, Svec)
         else: 
@@ -325,11 +337,25 @@ class SphericalQuadratureNeuralField(NeuralField):
     def makeJv(self, v, u, p, **kwargs): 
         self.__dict__.update(kwargs) 
         self.param_unpack(p)  
-        dSvec = self.weights*v*self.dS(u) 
+        dSvec = np.dot(np.diag*(elf.weights), (v*self.dS(u)))  
         if self.rule == "lebedev" or self.rule == "Lebedev":
             return -v + 4.0*np.pi*self.kappa*np.dot(self.kernel, dSvec)
         else:
             return -v + self.kappa*np.dot(self.kernel, dSvec)  
+
+    def param_pack(self, **kwargs):
+        self.__dict__.update(kwargs)
+        pvec = np.zeros(9)
+        pvec[0] = float(self.n) 
+        pvec[1] = self.h
+        pvec[2] = self.mu 
+        pvec[3] = self.kappa 
+        pvec[4] = self.a1 
+        pvec[5] = self.b1
+        pvec[6] = self.a2 
+        pvec[7] = self.b2 
+        pvec[8] = self.radius 
+        return pvec 
 
 
 
