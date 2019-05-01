@@ -2,7 +2,7 @@
 !the 2-sphere using the quadrature rules given in quadrature_rules.py 
 
 
-module integralRoutines 
+module integral_routines 
 
 use omp_lib
 implicit none
@@ -30,7 +30,7 @@ subroutine make_Kernel(n, p, theta, phi, kern)
     !Function to compute the connectivity matrix 
 
     integer, intent(in) :: n
-    real(kind=8), dimension(10), intent(in) :: p
+    real(kind=8), dimension(9), intent(in) :: p
     real(kind=8), dimension(n), intent(in) :: theta, phi
     real(kind=8), dimension(n,n), intent(out) :: kern
     real(kind=8) :: d, connect
@@ -46,7 +46,6 @@ subroutine make_Kernel(n, p, theta, phi, kern)
     a2 = p(7)
     b2 = p(8)
     radius = p(9)
-    amp = p(10)
     
     !Compute kernel matrix
     kern = 0.0_dp
@@ -58,7 +57,9 @@ subroutine make_Kernel(n, p, theta, phi, kern)
             d = dist(phi(i), theta(i), phi(j), theta(j), radius)
             if (i == j) then
                 d = 0.0_dp
-            end if
+            else if (isnan(d)) then 
+                d = pi 
+            end if  
             
             !Compute connectivity
             kern(i,j) = a1*exp(-d*d/b1) - a2*exp(-d*d/b2)      
@@ -74,7 +75,7 @@ subroutine make_F(n, p, theta, phi, kern, w, u, F)
     !using a quadrature rule  
 
     integer, intent(in) :: n
-    real(kind=8), dimension(10), intent(in) :: p
+    real(kind=8), dimension(9), intent(in) :: p
     real(kind=8), dimension(n,n), intent(in) :: kern
     real(kind=8), dimension(n), intent(in) :: theta, phi, w, u
     real(kind=8), dimension(n), intent(out) :: F
@@ -109,7 +110,7 @@ end subroutine make_F
 subroutine make_Jv(n, p, theta, phi, kern, w, u, v, Jv)
 
     integer, intent(in) :: n
-    real(kind=8), dimension(10), intent(in) :: p
+    real(kind=8), dimension(9), intent(in) :: p
     real(kind=8), dimension(n,n), intent(in) :: kern
     real(kind=8), dimension(n), intent(in) :: theta, phi, w, u, v
     real(kind=8), dimension(n), intent(out) :: Jv

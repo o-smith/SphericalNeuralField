@@ -16,7 +16,7 @@ class KrylovCounter(object):
         self.counter += 1
         self.niter.append(self.counter)
         self.resid.append(rk)
-        print self.counter, rk
+        # print self.counter, rk
 
 
 

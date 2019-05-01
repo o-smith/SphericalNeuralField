@@ -305,18 +305,10 @@ class SphericalQuadratureNeuralField(NeuralField):
         self.__dict__.update(kwargs)
         self.kernel = np.zeros((self.n, self.n)) 
         print "Computing kernel..."
-        for i in range(self.n):
-            update_progress(float(i)/float(self.n))
-            for j in range(self.n):
-                if i == j:
-                    d = 0.0
-                else:
-                    d = greatcircledistance(self.phi[i], self.theta[i],
-                        self.phi[j], self.theta[j], self.radius)
-                if d == np.NaN or d >= np.pi: 
-                    d = np.pi 
-                self.kernel[i,j] = self.a1*np.exp(-d*d/self.b1) - self.a2*np.exp(-d*d/self.b2)
-        print "\nDone" 
+        pvec = self.param_pack() 
+        self.kernel = im.integral_routines.make_kernel(pvec, self.theta, self.phi)
+        print "Done"
+
 
     def make_u0(self, sigma=0.6, amp=5.0, **kwargs):
         self.__dict__.update(kwargs) 
@@ -327,21 +319,14 @@ class SphericalQuadratureNeuralField(NeuralField):
     def makeF(self, u, p, **kwargs):
         self.__dict__.update(kwargs) 
         self.param_unpack(p)
-        Svec = np.dot(np.diag(self.weights), self.S(u)) 
-        if self.rule == "lebedev" or self.rule == "Lebedev":
-            return -u + 4.0*np.pi*self.kappa*np.dot(self.kernel, Svec)
-        else: 
-            return -u + self.kappa*np.dot(self.kernel, Svec)
+        return im.integral_routines.make_f(p,self.theta,self.phi,self.kernel,self.weights,u)
+
 
 
     def makeJv(self, v, u, p, **kwargs): 
         self.__dict__.update(kwargs) 
         self.param_unpack(p)  
-        dSvec = np.dot(np.diag*(elf.weights), (v*self.dS(u)))  
-        if self.rule == "lebedev" or self.rule == "Lebedev":
-            return -v + 4.0*np.pi*self.kappa*np.dot(self.kernel, dSvec)
-        else:
-            return -v + self.kappa*np.dot(self.kernel, dSvec)  
+        return im.integral_routines.make_jv(p,self.theta,self.phi,self.kernel,self.weights,u,v)  
 
     def param_pack(self, **kwargs):
         self.__dict__.update(kwargs)
