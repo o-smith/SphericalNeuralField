@@ -13,17 +13,16 @@ print "Testing the Neural field convergence using the icosahedral quadrature sch
 
 #Make the neural field model 
 field = SphericalQuadratureNeuralField() 
-field.makeGrid("lebedev")
+field.makeGrid("icosahedral")
 field.computeKernel() 
-field.kappa *= 4.0*np.pi 
-field.h = 0.3
+# field.kappa *= 4.0*np.pi 
+field.h = 0.2
 
 #Set up the "function handles"
 #These are interfaces to the underlying Fortran routines
 problemHandle   = lambda t, u, p:  field.makeF(u,p) #+ fixer
 
-#Measurement function
-measurefunc = lambda u: interp_norm(u, field.phi, field.theta)
+#Initial state 
 u1 = np.zeros(field.n)
 
 #Set up RK4 integrator
@@ -36,9 +35,10 @@ du.set_f_params(pvec)
 
 ##Do time-stepping
 print "Time stepping..."
-while du.t < 100.:
-   update_progress(du.t/100.0)
+while du.t < 200.0:
+   # update_progress(du.t/100.0)
    du.integrate(du.t+dt)
+   print du.t
 u = du.y
 print "Time stepped measure = %f" %interp_measure(u, field.phi, field.theta)
 
@@ -49,7 +49,7 @@ convergence_recorder = KrylovCounter()
 #Call Newton-GRMES on this state and solve it to make sure it's stationary 
 u1, count, info, conv = newton_gmres(field.makeJv, field.makeF, u, pvec, noisy=True, toler=1e-14)
 if conv:
-	print "Stationary state found on icosahedral branch in %i iterations." %count 
+	print "Stationary state found in %i iterations." %count 
 	print "Measure = %f" %interp_measure(u1, field.phi, field.theta) 
 else:
 	print "Stationary state not found."

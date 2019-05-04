@@ -40,7 +40,7 @@ class NeuralField:
         self.h, self.mu, self.kappa = 0.35, 8.0, 49.3155529412
         self.radius = 1.0 
         self.lambda_ord = 10
-        self.lmax = 40 
+        self.lmax = 20 
 
         #Replace these defaults with user choices if necessary 
         self.__dict__.update(kwargs)
@@ -72,8 +72,14 @@ class NeuralField:
         return (self.mu**2)*s*(1.0 - s)*(1.0 - 2.0*s) 
 
     def param_unpack(self, p):
-        self.h, self.mu, self.kappa, self.radius = p[0], p[1], p[2], p[3]
-        self.a1, self.b1, self.a2, self.b2 = p[4], p[5], p[6], p[7]  
+        self.h = p[1]
+        self.mu = p[2]
+        self.kappa = p[3]
+        self.a1 = p[4]
+        self.b1 = p[5]
+        self.a2 = p[6]
+        self.b2 = p[7]
+        self.radius = p[8] 
 
 
 

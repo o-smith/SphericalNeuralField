@@ -102,7 +102,7 @@ def harmonicplot(u, ynorm=None, threeD=False, detail=2, cmap='virdis', decoratio
     if l == 974:
         theta, phi, w = qr.gen_grid()
     else:
-        theta, phi, w = qr.generate_iso_grid('quadraturedata/qsph1-100-3432DP.txt')
+        theta, phi, w = qr.generate_iso_grid('model/quadraturedata/qsph1-100-3432DP.txt')
 
     #Shift grid to SH covention
     phid = np.degrees(phi)
