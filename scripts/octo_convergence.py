@@ -13,7 +13,7 @@ print "Testing the Neural field convergence using the octahedral quadrature sche
 
 #Make the neural field model 
 field = SphericalQuadratureNeuralField() 
-field.makeGrid("octahedral")
+field.makeGrid("lebedev")
 field.computeKernel() 
 field.kappa *= 4.0*np.pi 
 field.h = 0.3

@@ -9,8 +9,17 @@ import matplotlib
 from matplotlib import cm, colors
 from mpl_toolkits.mplot3d import Axes3D
 import quadrature_rules as qr 
-# font = {'size'   : 18}
-# matplotlib.rc('font', **font)
+from itertools import groupby
+
+#Colours
+Icolour = '#DB2420' #Central line red
+Ocolour = '#00A0E2' #Victoria line blue
+O2colour = '#868F98' #Jubilee line grey
+D2colour = '#F386A0' #Hammersmith line pink
+D4colour = '#97015E' #Metropolitan line magenta
+D6colour = '#B05F0F' #Bakerloo line brown
+D5colour = '#00843D' #District line green
+O3colour = '#021EA9' 
 
 def plotchart(u, mat=False, moredetail=True, cmap='viridis', decoration=True, threeD=False):
 
@@ -174,6 +183,27 @@ def harmonicplot(u, ynorm=None, threeD=False, detail=2, cmap='virdis', decoratio
             plt.axis("off")
         plt.tight_layout()
         plt.show()
+
+
+def plot_bif(p, u, s):
+
+    #Group according to stability
+    plt.ion() 
+    for g_s, group in groupby(zip(zip(p, u), s), lambda p: p[1]):
+        g_p, g_u = [], []
+        for i in group:
+            g_p.append(i[0][0])
+            g_u.append(i[0][1])
+        #Plot as dashed or solid line
+        if g_s:
+            plt.plot(g_p, g_u, linestyle='--', color=Ocolour, linewidth=2.0)
+        else:
+            plt.plot(g_p, g_u, linestyle='-', color=Ocolour, linewidth=3.0)
+
+    plt.ylabel('$||u||_{2}$', fontsize=24, rotation=0, labelpad = 26)
+    plt.xlabel('$h$', fontsize=24)
+    plt.tight_layout()
+    plt.pause(0.001) 
 
 
 if __name__=="__main__":
